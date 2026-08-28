@@ -122,6 +122,24 @@
     });
   }
 
+  const oopsClip = new Audio("sounds/oops.mp3");
+  oopsClip.preload = "auto";
+
+  function playOopsSynth() {
+    const ctx = getCtx();
+    const now = ctx.currentTime;
+    // sad little trombone "wah-wah"
+    playTone(300, now, 0.25, "sawtooth", 0.14, 220);
+    playTone(220, now + 0.22, 0.35, "sawtooth", 0.14, 160);
+  }
+
+  function playOopsSound() {
+    if (!soundEnabled()) return;
+    getCtx(); // unlock audio on iOS/Android before playing the clip
+    const clip = oopsClip.cloneNode(true);
+    clip.play().catch(playOopsSynth);
+  }
+
   function showMilestoneFlash(total) {
     const flash = document.createElement("div");
     flash.className = "milestone-flash";
@@ -164,6 +182,7 @@
     pushHistory({ type: kind, delta: -1 });
     saveState();
     render();
+    playOopsSound();
   }
 
   function undoLast() {
@@ -175,6 +194,7 @@
     if (state.eagles < 0) state.eagles = 0;
     saveState();
     render();
+    playOopsSound();
   }
 
   function resetTrip() {
