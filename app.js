@@ -76,8 +76,10 @@
     osc.stop(start + duration + 0.02);
   }
 
-  function playHawkSound() {
-    if (!soundEnabled()) return;
+  const hawkClip = new Audio("sounds/hawk.mp3");
+  hawkClip.preload = "auto";
+
+  function playHawkSynth() {
     const ctx = getCtx();
     const now = ctx.currentTime;
     // sharp, quick "kee-yeer" chirp - two fast upward chirps
@@ -85,13 +87,29 @@
     playTone(1400, now + 0.13, 0.15, "sawtooth", 0.15, 2200);
   }
 
-  function playEagleSound() {
+  function playHawkSound() {
     if (!soundEnabled()) return;
+    getCtx(); // unlock audio on iOS/Android before playing the clip
+    const clip = hawkClip.cloneNode(true);
+    clip.play().catch(playHawkSynth);
+  }
+
+  const eagleClip = new Audio("sounds/eagle.mp3");
+  eagleClip.preload = "auto";
+
+  function playEagleSynth() {
     const ctx = getCtx();
     const now = ctx.currentTime;
     // majestic descending call - lower, longer, with a little warble
     playTone(950, now, 0.35, "triangle", 0.18, 500);
     playTone(700, now + 0.3, 0.25, "triangle", 0.14, 420);
+  }
+
+  function playEagleSound() {
+    if (!soundEnabled()) return;
+    getCtx(); // unlock audio on iOS/Android before playing the clip
+    const clip = eagleClip.cloneNode(true);
+    clip.play().catch(playEagleSynth);
   }
 
   function playMilestoneFanfare() {
