@@ -10,6 +10,7 @@ const ASSETS = [
   "./sounds/hawk.mp3",
   "./sounds/eagle.mp3",
   "./sounds/oops.mp3",
+  "./sounds/fanfare.mp3",
 ];
 
 self.addEventListener("install", (event) => {

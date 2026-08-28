@@ -112,14 +112,23 @@
     clip.play().catch(playEagleSynth);
   }
 
-  function playMilestoneFanfare() {
-    if (!soundEnabled()) return;
+  const fanfareClip = new Audio("sounds/fanfare.mp3");
+  fanfareClip.preload = "auto";
+
+  function playMilestoneFanfareSynth() {
     const ctx = getCtx();
     const now = ctx.currentTime;
     const notes = [523.25, 659.25, 783.99, 1046.5]; // C5 E5 G5 C6
     notes.forEach((freq, i) => {
       playTone(freq, now + i * 0.11, 0.22, "square", 0.12, null);
     });
+  }
+
+  function playMilestoneFanfare() {
+    if (!soundEnabled()) return;
+    getCtx(); // unlock audio on iOS/Android before playing the clip
+    const clip = fanfareClip.cloneNode(true);
+    clip.play().catch(playMilestoneFanfareSynth);
   }
 
   const oopsClip = new Audio("sounds/oops.mp3");
