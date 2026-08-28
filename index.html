@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#1e293b">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>Hawk &amp; Eagle Counter</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="app">
+
+  <header class="header">
+    <h1>🦅 Hawk &amp; Eagle Counter 🦅</h1>
+    <button id="menuBtn" class="icon-btn" aria-label="Menu">⋮</button>
+  </header>
+
+  <section class="totals">
+    <div class="total-card">
+      <div class="total-label">Total Birds</div>
+      <div id="totalCount" class="total-value">0</div>
+    </div>
+  </section>
+
+  <section class="counters">
+    <div class="counter-card hawk">
+      <div class="counter-label">Hawks</div>
+      <div id="hawkCount" class="counter-value">0</div>
+      <button id="hawkBtn" class="tap-btn hawk-btn" aria-label="Add a hawk">
+        <span class="tap-emoji">🦅</span>
+        <span class="tap-text">HAWK!</span>
+      </button>
+      <button id="hawkMinus" class="adjust-btn" aria-label="Remove a hawk">− 1</button>
+    </div>
+
+    <div class="counter-card eagle">
+      <div class="counter-label">Eagles</div>
+      <div id="eagleCount" class="counter-value">0</div>
+      <button id="eagleBtn" class="tap-btn eagle-btn" aria-label="Add an eagle">
+        <span class="tap-emoji">🦅</span>
+        <span class="tap-text">EAGLE!</span>
+      </button>
+      <button id="eagleMinus" class="adjust-btn" aria-label="Remove an eagle">− 1</button>
+    </div>
+  </section>
+
+  <section class="controls">
+    <button id="undoBtn" class="control-btn">↩️ Undo Last</button>
+    <button id="resetBtn" class="control-btn danger">🗑️ Reset Trip</button>
+  </section>
+
+  <section class="log">
+    <div class="log-title">This trip started: <span id="tripDate"></span></div>
+  </section>
+
+</div>
+
+<!-- Settings / Save-to-Sheet drawer -->
+<div id="menuOverlay" class="overlay hidden">
+  <div class="drawer">
+    <div class="drawer-header">
+      <h2>Settings</h2>
+      <button id="closeMenuBtn" class="icon-btn" aria-label="Close">✕</button>
+    </div>
+
+    <div class="drawer-section">
+      <label class="toggle-row">
+        <span>Sound effects</span>
+        <input type="checkbox" id="soundToggle" checked>
+      </label>
+    </div>
+
+    <div class="drawer-section">
+      <h3>Save to Google Sheet</h3>
+      <p class="hint">
+        Paste your Google Apps Script Web App URL below to save today's date and
+        counts to your spreadsheet. See <code>README.md</code> for the 2-minute setup.
+      </p>
+      <input id="sheetUrlInput" type="url" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off">
+      <button id="saveSheetUrlBtn" class="control-btn">Save URL</button>
+      <button id="sendToSheetBtn" class="control-btn primary">📤 Save Today's Count</button>
+      <div id="sheetStatus" class="hint"></div>
+    </div>
+
+    <div class="drawer-section">
+      <h3>About</h3>
+      <p class="hint">Count hawks and eagles on your drives. Data is stored on this
+      phone (localStorage) so it works with no signal. Add this page to your
+      home screen for a full-screen app.</p>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>
