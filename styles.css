@@ -10,6 +10,8 @@
   --poor: #ef4444;
   --none: #475569;
   --accent: #14532d;
+  --series-diet: #3987e5;
+  --series-exercise: #d95926;
 }
 
 * { box-sizing: border-box; }
@@ -42,7 +44,7 @@ html, body {
   font-size: 1.4rem;
 }
 
-.view.hidden { display: none; }
+.hidden { display: none; }
 
 .day-nav {
   display: flex;
@@ -299,6 +301,197 @@ html, body {
   height: 7px;
   margin: 0;
 }
+
+/* ---------------- Charts view ---------------- */
+
+.chart-toggle-row {
+  margin: 12px 0 6px 0;
+}
+
+.toggle-group {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 4px;
+}
+
+.toggle-btn {
+  padding: 9px 4px;
+  border-radius: 9px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.toggle-btn.active {
+  background: var(--accent);
+  color: #d1fae5;
+}
+
+.chart-subhead {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+.chart-legend {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  margin-bottom: 10px;
+  font-size: 0.82rem;
+  color: var(--text);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-key {
+  display: inline-block;
+  width: 16px;
+  height: 2px;
+  border-radius: 1px;
+}
+
+.legend-key.diet { background: var(--series-diet); }
+.legend-key.exercise { background: var(--series-exercise); }
+
+.chart-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 12px 0 12px 12px;
+  margin-bottom: 10px;
+}
+
+.chart-scroll {
+  position: relative;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+.chart-svg {
+  display: block;
+  height: 240px;
+  touch-action: pan-x;
+}
+
+.chart-empty {
+  padding: 40px 12px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.chart-tooltip {
+  position: absolute;
+  top: 8px;
+  pointer-events: none;
+  background: var(--card-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35);
+}
+
+.chart-tooltip .tt-date {
+  color: var(--muted);
+  margin-bottom: 4px;
+}
+
+.chart-tooltip .tt-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chart-tooltip .tt-key {
+  display: inline-block;
+  width: 12px;
+  height: 2px;
+  border-radius: 1px;
+}
+
+.chart-tooltip .tt-key.diet { background: var(--series-diet); }
+.chart-tooltip .tt-key.exercise { background: var(--series-exercise); }
+
+.chart-tooltip .tt-value {
+  color: var(--text);
+  font-weight: 700;
+  margin-left: auto;
+}
+
+.chart-table-details {
+  margin-bottom: 16px;
+}
+
+.chart-table-details summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.85rem;
+  padding: 8px 2px;
+}
+
+.chart-table-wrap {
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin-top: 6px;
+}
+
+.chart-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-table th, .chart-table td {
+  padding: 7px 10px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+.chart-table th {
+  color: var(--muted);
+  font-weight: 600;
+  background: var(--card-2);
+}
+
+.chart-table td.rating-poor { color: var(--poor); }
+.chart-table td.rating-neutral { color: var(--neutral); }
+.chart-table td.rating-good { color: var(--good); }
+
+.tt-value.rating-poor { color: var(--poor); }
+.tt-value.rating-neutral { color: var(--neutral); }
+.tt-value.rating-good { color: var(--good); }
+
+/* SVG chart marks (color applied via class, never inline, so it stays themeable) */
+.line-diet { stroke: var(--series-diet); }
+.line-exercise { stroke: var(--series-exercise); }
+.pt-diet { fill: var(--series-diet); }
+.pt-exercise { fill: var(--series-exercise); }
+.pt-ring { stroke: var(--card); }
+.grid-hline, .grid-vline { stroke: var(--border); }
+.axis-label { fill: var(--muted); }
+.axis-label-strong { fill: var(--text); font-weight: 600; }
+.axis-dot-good { fill: var(--good); }
+.axis-dot-neutral { fill: var(--neutral); }
+.axis-dot-poor { fill: var(--poor); }
+.crosshair-line { stroke: var(--muted); }
 
 /* ---------------- Tab bar ---------------- */
 

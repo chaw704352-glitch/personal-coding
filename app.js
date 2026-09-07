@@ -62,6 +62,8 @@
   let weekRef = new Date();
   let monthRef = new Date();
 
+  const MONTH_SHORT = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
   const el = {
     dayDate: document.getElementById("dayDate"),
     dayPicker: document.getElementById("dayPicker"),
@@ -87,6 +89,13 @@
 
     tabs: document.querySelectorAll(".tab-btn"),
     views: document.querySelectorAll(".view"),
+
+    chartGranularity: document.getElementById("chartGranularity"),
+    chartScroll: document.getElementById("chartScroll"),
+    chartSvg: document.getElementById("chartSvg"),
+    chartTooltip: document.getElementById("chartTooltip"),
+    chartEmpty: document.getElementById("chartEmpty"),
+    chartTable: document.getElementById("chartTable"),
   };
 
   function getEntry(key) {
@@ -274,12 +283,372 @@
     renderMonth();
   });
 
+  // ---------- Charts view ----------
+  const SVGNS = "http://www.w3.org/2000/svg";
+  const RATING_OF_SCORE = { 1: "poor", 2: "neutral", 3: "good" };
+  let chartGranularity = "day";
+
+  function scoreOf(rating) {
+    return rating ? SCORE[rating] : null;
+  }
+
+  function avgScore(values) {
+    const nums = values.filter((v) => v != null);
+    return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : null;
+  }
+
+  function ratingOfScore(v) {
+    return RATING_OF_SCORE[Math.min(3, Math.max(1, Math.round(v)))];
+  }
+
+  function ratingLabel(v, showAvg) {
+    const name = ratingOfScore(v);
+    const cap = name.charAt(0).toUpperCase() + name.slice(1);
+    return showAvg ? `${cap} (${v.toFixed(1)})` : cap;
+  }
+
+  function ratingClass(v) {
+    return "rating-" + ratingOfScore(v);
+  }
+
+  function chartRange() {
+    const end = new Date();
+    end.setHours(0, 0, 0, 0);
+    const start = new Date(end.getFullYear(), end.getMonth() - 11, 1);
+    return { start, end };
+  }
+
+  function buildDailyPoints() {
+    const { start, end } = chartRange();
+    const points = [];
+    for (let d = new Date(start); d <= end; d = addDays(d, 1)) {
+      const entry = getEntry(toKey(d)) || {};
+      points.push({ date: new Date(d), diet: scoreOf(entry.diet), exercise: scoreOf(entry.exercise) });
+    }
+    return points;
+  }
+
+  function buildWeeklyPoints() {
+    const { start, end } = chartRange();
+    const points = [];
+    for (let w = startOfWeek(start); w <= end; w = addDays(w, 7)) {
+      const dietVals = [], exerciseVals = [];
+      for (let i = 0; i < 7; i++) {
+        const entry = getEntry(toKey(addDays(w, i))) || {};
+        dietVals.push(scoreOf(entry.diet));
+        exerciseVals.push(scoreOf(entry.exercise));
+      }
+      points.push({ date: new Date(w), diet: avgScore(dietVals), exercise: avgScore(exerciseVals) });
+    }
+    return points;
+  }
+
+  function buildMonthlyPoints() {
+    const { start, end } = chartRange();
+    const points = [];
+    for (let m = 0; m < 12; m++) {
+      const monthDate = new Date(start.getFullYear(), start.getMonth() + m, 1);
+      const daysInMonth = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0).getDate();
+      const dietVals = [], exerciseVals = [];
+      for (let day = 1; day <= daysInMonth; day++) {
+        const d = new Date(monthDate.getFullYear(), monthDate.getMonth(), day);
+        if (d > end) break;
+        const entry = getEntry(toKey(d)) || {};
+        dietVals.push(scoreOf(entry.diet));
+        exerciseVals.push(scoreOf(entry.exercise));
+      }
+      points.push({ date: monthDate, diet: avgScore(dietVals), exercise: avgScore(exerciseVals) });
+    }
+    return points;
+  }
+
+  function buildChartPoints(granularity) {
+    if (granularity === "day") return buildDailyPoints();
+    if (granularity === "week") return buildWeeklyPoints();
+    return buildMonthlyPoints();
+  }
+
+  function monthYearShort(date) {
+    return `${MONTH_SHORT[date.getMonth()]} '${String(date.getFullYear()).slice(2)}`;
+  }
+
+  function dateLabelFor(point, granularity) {
+    if (granularity === "month") {
+      return point.date.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+    }
+    if (granularity === "week") {
+      const weekEnd = addDays(point.date, 6);
+      return `Week of ${fmtShort(point.date)} – ${fmtShort(weekEnd)}, ${weekEnd.getFullYear()}`;
+    }
+    return point.date.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+  }
+
+  function svgEl(tag, attrs) {
+    const node = document.createElementNS(SVGNS, tag);
+    for (const k in attrs) node.setAttribute(k, attrs[k]);
+    return node;
+  }
+
+  function renderChartSVG(points, granularity) {
+    const svg = el.chartSvg;
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    const hasData = points.some((p) => p.diet != null || p.exercise != null);
+    el.chartEmpty.classList.toggle("hidden", hasData);
+    el.chartScroll.classList.toggle("hidden", !hasData);
+    if (!hasData) {
+      svg.setAttribute("width", 0);
+      svg.setAttribute("height", 0);
+      return;
+    }
+
+    const H = 220, topPad = 16, bottomPad = 34, leftPad = 58, rightPad = 100;
+    const plotH = H - topPad - bottomPad;
+    const n = points.length;
+    const minPx = granularity === "day" ? 14 : granularity === "week" ? 20 : 40;
+    const containerW = el.chartScroll.clientWidth || 320;
+    const innerMin = Math.max(1, n - 1) * minPx;
+    const W = Math.max(containerW, leftPad + rightPad + innerMin);
+
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    svg.setAttribute("width", W);
+    svg.setAttribute("height", H);
+
+    const xStep = n > 1 ? (W - leftPad - rightPad) / (n - 1) : 0;
+    const xAt = (i) => leftPad + i * xStep;
+    const yAt = (score) => topPad + ((3 - score) / 2) * plotH;
+
+    // y gridlines with Poor/Neutral/Good reference dots (reusing the app's semantic colors)
+    [
+      { score: 3, cls: "axis-dot-good", label: "Good" },
+      { score: 2, cls: "axis-dot-neutral", label: "Neutral" },
+      { score: 1, cls: "axis-dot-poor", label: "Poor" },
+    ].forEach((row) => {
+      const y = yAt(row.score);
+      svg.appendChild(svgEl("line", { class: "grid-hline", x1: leftPad, x2: W - rightPad, y1: y, y2: y, "stroke-width": 1 }));
+      svg.appendChild(svgEl("circle", { class: row.cls, cx: 10, cy: y, r: 4 }));
+      const t = svgEl("text", { class: "axis-label", x: 18, y: y + 3, "font-size": 10 });
+      t.textContent = row.label;
+      svg.appendChild(t);
+    });
+
+    // month-boundary vertical gridlines + x-axis labels
+    let tickIdx;
+    if (granularity === "month") {
+      tickIdx = points.map((_, i) => i);
+    } else {
+      tickIdx = [];
+      points.forEach((p, i) => {
+        if (i === 0 || p.date.getMonth() !== points[i - 1].date.getMonth() || p.date.getFullYear() !== points[i - 1].date.getFullYear()) {
+          tickIdx.push(i);
+        }
+      });
+    }
+    tickIdx.forEach((i) => {
+      const x = xAt(i);
+      if (granularity !== "month") {
+        svg.appendChild(svgEl("line", { class: "grid-vline", x1: x, x2: x, y1: topPad, y2: topPad + plotH, "stroke-width": 1 }));
+      }
+      const t = svgEl("text", {
+        class: "axis-label", x, y: H - 12, "font-size": 10,
+        "text-anchor": granularity === "month" ? "middle" : "start",
+      });
+      t.textContent = monthYearShort(points[i].date);
+      svg.appendChild(t);
+    });
+
+    // series lines + point markers
+    function drawSeries(key, cls) {
+      let d = "", open = false, lastI = -1;
+      points.forEach((p, i) => {
+        const v = p[key];
+        if (v == null) { open = false; return; }
+        const x = xAt(i), y = yAt(v);
+        d += (open ? "L" : "M") + x.toFixed(1) + " " + y.toFixed(1) + " ";
+        open = true;
+      });
+      if (d) {
+        svg.appendChild(svgEl("path", {
+          class: "line-" + cls, d: d.trim(), fill: "none",
+          "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round",
+        }));
+      }
+      points.forEach((p, i) => {
+        const v = p[key];
+        if (v == null) return;
+        svg.appendChild(svgEl("circle", { class: "pt-" + cls + " pt-ring", cx: xAt(i), cy: yAt(v), r: 3, "stroke-width": 1.5 }));
+        lastI = i;
+      });
+      return lastI;
+    }
+
+    const lastDietI = drawSeries("diet", "diet");
+    const lastExerciseI = drawSeries("exercise", "exercise");
+
+    // direct end-of-line labels (the one place these lines get labeled, per line-chart convention)
+    function endLabel(idx, key, cls, dy) {
+      if (idx < 0) return;
+      const v = points[idx][key];
+      const x = xAt(idx), y = yAt(v);
+      svg.appendChild(svgEl("circle", { class: "pt-" + cls + " pt-ring", cx: x, cy: y, r: 5, "stroke-width": 2 }));
+      const t = svgEl("text", { x: x + 9, y: y + dy, class: "axis-label-strong", "font-size": 11 });
+      t.textContent = ratingLabel(v, granularity !== "day");
+      svg.appendChild(t);
+    }
+    const sameEndpoint = lastDietI >= 0 && lastDietI === lastExerciseI && points[lastDietI].diet === points[lastDietI].exercise;
+    if (sameEndpoint) {
+      endLabel(lastDietI, "diet", "diet", -7);
+      endLabel(lastExerciseI, "exercise", "exercise", 15);
+    } else {
+      endLabel(lastDietI, "diet", "diet", 4);
+      endLabel(lastExerciseI, "exercise", "exercise", 4);
+    }
+
+    // crosshair + tap/hover tooltip
+    const crosshair = svgEl("line", { class: "crosshair-line", x1: 0, x2: 0, y1: topPad, y2: topPad + plotH, "stroke-width": 1, opacity: 0 });
+    svg.appendChild(crosshair);
+
+    const hitRect = svgEl("rect", { x: leftPad, y: 0, width: Math.max(0, W - leftPad), height: H, fill: "transparent" });
+    svg.appendChild(hitRect);
+
+    function nearestIndex(clientX) {
+      const rect = svg.getBoundingClientRect();
+      const localX = (clientX - rect.left) * (W / rect.width);
+      return Math.max(0, Math.min(n - 1, Math.round((localX - leftPad) / (xStep || 1))));
+    }
+
+    function showTooltip(idx) {
+      const p = points[idx];
+      const x = xAt(idx);
+      crosshair.setAttribute("x1", x);
+      crosshair.setAttribute("x2", x);
+      crosshair.setAttribute("opacity", 1);
+
+      el.chartTooltip.innerHTML = "";
+      const dateEl = document.createElement("div");
+      dateEl.className = "tt-date";
+      dateEl.textContent = dateLabelFor(p, granularity);
+      el.chartTooltip.appendChild(dateEl);
+
+      [["diet", "Diet"], ["exercise", "Exercise"]].forEach(([key, name]) => {
+        const row = document.createElement("div");
+        row.className = "tt-row";
+        const keySwatch = document.createElement("span");
+        keySwatch.className = "tt-key " + key;
+        row.appendChild(keySwatch);
+        const nameEl = document.createElement("span");
+        nameEl.textContent = name;
+        row.appendChild(nameEl);
+        const valEl = document.createElement("span");
+        const v = p[key];
+        valEl.className = "tt-value" + (v != null ? " " + ratingClass(v) : "");
+        valEl.textContent = v != null ? ratingLabel(v, granularity !== "day") : "No log";
+        row.appendChild(valEl);
+        el.chartTooltip.appendChild(row);
+      });
+
+      el.chartTooltip.classList.remove("hidden");
+      const sl = el.chartScroll.scrollLeft, cw = el.chartScroll.clientWidth, approxW = 150;
+      let left = x + 10;
+      if (left + approxW > sl + cw) left = x - approxW - 10;
+      left = Math.max(sl + 4, Math.min(left, sl + cw - approxW - 4));
+      el.chartTooltip.style.left = left + "px";
+    }
+
+    function hideTooltip() {
+      crosshair.setAttribute("opacity", 0);
+      el.chartTooltip.classList.add("hidden");
+    }
+
+    hitRect.addEventListener("pointermove", (e) => {
+      if (e.pointerType !== "mouse") return;
+      showTooltip(nearestIndex(e.clientX));
+    });
+    hitRect.addEventListener("pointerleave", (e) => {
+      if (e.pointerType !== "mouse") return;
+      hideTooltip();
+    });
+
+    let touchStartX = null;
+    hitRect.addEventListener("pointerdown", (e) => {
+      if (e.pointerType === "mouse") { showTooltip(nearestIndex(e.clientX)); return; }
+      touchStartX = e.clientX;
+    });
+    hitRect.addEventListener("pointerup", (e) => {
+      if (e.pointerType === "mouse") return;
+      if (touchStartX != null && Math.abs(e.clientX - touchStartX) < 10) showTooltip(nearestIndex(e.clientX));
+      touchStartX = null;
+    });
+
+    // open scrolled to the most recent data
+    requestAnimationFrame(() => { el.chartScroll.scrollLeft = el.chartScroll.scrollWidth; });
+  }
+
+  function renderChartTable(points, granularity) {
+    const table = el.chartTable;
+    table.innerHTML = "";
+    const thead = document.createElement("thead");
+    const headRow = document.createElement("tr");
+    ["Period", "Diet", "Exercise"].forEach((h) => {
+      const th = document.createElement("th");
+      th.textContent = h;
+      headRow.appendChild(th);
+    });
+    thead.appendChild(headRow);
+    table.appendChild(thead);
+
+    const tbody = document.createElement("tbody");
+    points.forEach((p) => {
+      if (p.diet == null && p.exercise == null) return;
+      const tr = document.createElement("tr");
+      const tdDate = document.createElement("td");
+      tdDate.textContent = granularity === "month"
+        ? monthYearShort(p.date)
+        : granularity === "week"
+          ? `${fmtShort(p.date)} – ${fmtShort(addDays(p.date, 6))}`
+          : p.date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+      tr.appendChild(tdDate);
+      ["diet", "exercise"].forEach((key) => {
+        const td = document.createElement("td");
+        const v = p[key];
+        if (v == null) {
+          td.textContent = "–";
+        } else {
+          td.textContent = ratingLabel(v, granularity !== "day");
+          td.className = ratingClass(v);
+        }
+        tr.appendChild(td);
+      });
+      tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+  }
+
+  function renderCharts() {
+    const points = buildChartPoints(chartGranularity);
+    renderChartSVG(points, chartGranularity);
+    renderChartTable(points, chartGranularity);
+  }
+
+  el.chartGranularity.addEventListener("click", (e) => {
+    const btn = e.target.closest(".toggle-btn");
+    if (!btn) return;
+    chartGranularity = btn.dataset.granularity;
+    el.chartGranularity.querySelectorAll(".toggle-btn").forEach((b) => b.classList.toggle("active", b === btn));
+    renderCharts();
+  });
+
+  window.addEventListener("resize", () => {
+    if (!document.getElementById("chartsView").classList.contains("hidden")) renderCharts();
+  });
+
   // ---------- Tab switching ----------
   function switchView(viewId) {
     el.views.forEach((v) => v.classList.toggle("hidden", v.id !== viewId));
     el.tabs.forEach((t) => t.classList.toggle("active", t.dataset.view === viewId));
     if (viewId === "weekView") renderWeek();
     if (viewId === "monthView") renderMonth();
+    if (viewId === "chartsView") renderCharts();
   }
 
   el.tabs.forEach((tab) => {

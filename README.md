@@ -46,9 +46,16 @@ The app has three tabs at the bottom:
   dots (diet, exercise) colored by rating. Tap any day to jump straight to
   the Log tab for that date. Below the calendar are the same Poor/Neutral/Good
   counts and average score, for the whole month.
+- **📈 Charts** — Diet and Exercise plotted on the same trend line, over the
+  trailing 12 months. Toggle between **Day** (every logged day), **Week avg**,
+  and **Month avg** to zoom out; the chart scrolls horizontally and opens on
+  the most recent data. Tap (or hover, on desktop) any point for the exact
+  date and both ratings, or expand **Show as table** for the full list of
+  numbers behind the chart.
 
 Scores are Poor = 1, Neutral = 2, Good = 3 — the "Avg score" in each summary
-is the average of that over the days you actually logged.
+(and the numbers next to Week/Month averages in Charts) is the average of
+that over the days you actually logged.
 
 ## Files
 

@@ -104,10 +104,43 @@
     </div>
   </section>
 
+  <!-- ---------------- CHARTS VIEW ---------------- -->
+  <section id="chartsView" class="view hidden">
+    <div class="chart-toggle-row">
+      <div class="toggle-group" id="chartGranularity">
+        <button class="toggle-btn active" data-granularity="day">Day</button>
+        <button class="toggle-btn" data-granularity="week">Week avg</button>
+        <button class="toggle-btn" data-granularity="month">Month avg</button>
+      </div>
+    </div>
+    <div class="chart-subhead">Trailing 12 months</div>
+
+    <div class="chart-legend">
+      <span class="legend-item"><i class="legend-key diet"></i> Diet</span>
+      <span class="legend-item"><i class="legend-key exercise"></i> Exercise</span>
+    </div>
+
+    <div class="chart-card">
+      <div id="chartScroll" class="chart-scroll">
+        <svg id="chartSvg" class="chart-svg" preserveAspectRatio="none"></svg>
+        <div id="chartTooltip" class="chart-tooltip hidden"></div>
+      </div>
+      <div id="chartEmpty" class="chart-empty hidden">No entries yet in this range — log a few days to see the trend.</div>
+    </div>
+
+    <details class="chart-table-details">
+      <summary>Show as table</summary>
+      <div class="chart-table-wrap">
+        <table id="chartTable" class="chart-table"></table>
+      </div>
+    </details>
+  </section>
+
   <nav class="tab-bar">
     <button id="tabLog" class="tab-btn active" data-view="logView">📅 Log</button>
     <button id="tabWeek" class="tab-btn" data-view="weekView">🗓️ Week</button>
     <button id="tabMonth" class="tab-btn" data-view="monthView">📆 Month</button>
+    <button id="tabCharts" class="tab-btn" data-view="chartsView">📈 Charts</button>
   </nav>
 
 </div>
