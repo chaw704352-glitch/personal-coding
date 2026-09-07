@@ -3,8 +3,8 @@
   --card-bg: #1e293b;
   --hawk: #c2410c;
   --hawk-dark: #9a3412;
-  --eagle: #1d4ed8;
-  --eagle-dark: #1e3a8a;
+  --eagle: #1e3a8a;
+  --eagle-dark: #142a63;
   --text: #f1f5f9;
   --muted: #94a3b8;
   --accent: #f5b041;
@@ -146,7 +146,7 @@ html, body {
 }
 
 .tap-emoji {
-  font-size: 3rem;
+  font-size: 4.2rem;
   line-height: 1;
 }
 
