@@ -1,12 +1,12 @@
 {
-  "name": "Hawk & Eagle Counter",
-  "short_name": "Hawk/Eagle",
-  "description": "Count hawks and eagles on your drives",
+  "name": "Diet & Exercise Tracker",
+  "short_name": "Diet/Exercise",
+  "description": "Daily diet and exercise rating tracker with week and month summaries",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",
   "background_color": "#0f172a",
-  "theme_color": "#1e293b",
+  "theme_color": "#14532d",
   "orientation": "portrait",
   "icons": [
     {

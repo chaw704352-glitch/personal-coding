@@ -1,12 +1,12 @@
-# Hawk & Eagle Counter 🦅
+# Diet & Exercise Tracker 🥗💪
 
-A tiny, no-frills web app for counting hawks and eagles on long drives. Big
-buttons, fun sounds, a milestone fanfare every 10 birds, easy mistake-fixing,
-and an optional "save to Google Sheets" button to log each trip.
+A tiny, no-frills web app for rating how your diet and exercise went each
+day — **Poor**, **Neutral**, or **Good** — with week and month summaries so
+you can see trends at a glance.
 
-Works entirely offline once loaded (it's a PWA), so it's fine on backroads
-with no signal. All counts are saved on the phone (`localStorage`) so nothing
-is lost if you close the browser.
+Works entirely offline once loaded (it's a PWA), and all your data is saved
+on the phone itself (`localStorage`). Nothing is sent anywhere — there's no
+server, account, or database outside the app.
 
 ## Try it locally
 
@@ -18,7 +18,7 @@ python3 -m http.server 8000
 
 then visit `http://localhost:8000`.
 
-## Put it on your Android phones
+## Put it on your Android phone
 
 The easiest option is free static hosting with **GitHub Pages**:
 
@@ -26,49 +26,31 @@ The easiest option is free static hosting with **GitHub Pages**:
 2. In the repo settings, enable **Pages** → deploy from the branch containing
    these files (root folder).
 3. GitHub gives you a URL like `https://yourname.github.io/personal-coding/`.
-4. Open that URL on each phone in Chrome, tap the **⋮** menu →
+4. Open that URL on your phone in Chrome, tap the **⋮** menu →
    **"Add to Home screen"**. It'll behave like a real app (full screen icon,
-   works offline).
+   works offline, your ratings stay saved between visits).
 
 ## Using the app
 
-- Tap **HAWK!** or **EAGLE!** each time you spot one — it plays a little
-  matching call and bumps the counter.
-- Every 10 total birds (10, 20, 30, ...) you get a celebration fanfare and
-  flash on screen.
-- Made a mistake? Use **↩️ Undo Last** to undo the most recent tap (of either
-  kind), or the **− 1** button under a specific counter to knock one off that
-  type directly.
-- **🗑️ Reset Trip** clears both counters and starts a new trip (asks for
-  confirmation first).
-- The **⋮** menu lets you turn sound on/off and set up spreadsheet saving.
+The app has three tabs at the bottom:
 
-## Bonus: saving counts to a Google Sheet
+- **📅 Log** — Rate today's **Diet** and **Exercise** as Poor / Neutral /
+  Good with one tap each. Use the **‹ ›** arrows or the date picker to log a
+  different day (forgot yesterday? no problem). Tap a selected rating again
+  to clear it, or use **🗑️ Clear This Day** to wipe both ratings for that
+  day.
+- **🗓️ Week** — See the current week (Monday–Sunday) at a glance, with each
+  day's diet and exercise rating, plus a count of Poor/Neutral/Good and an
+  average score for the week. Use **‹ ›** to browse other weeks.
+- **📆 Month** — A calendar view of the whole month; each day shows two small
+  dots (diet, exercise) colored by rating. Tap any day to jump straight to
+  the Log tab for that date. Below the calendar are the same Poor/Neutral/Good
+  counts and average score, for the whole month.
 
-This uses a free Google Apps Script "Web App" as a lightweight bridge — no
-Google Cloud project or OAuth needed.
-
-1. Create (or open) a Google Sheet you want to log to.
-2. In the Sheet, go to **Extensions → Apps Script**.
-3. Delete any starter code and paste in the contents of
-   [`google-apps-script.gs`](./google-apps-script.gs) from this repo.
-4. Click **Deploy → New deployment**.
-   - Select type: **Web app**.
-   - Execute as: **Me**.
-   - Who has access: **Anyone** (this only exposes an endpoint that appends a
-     row — it can't read your sheet back).
-5. Click **Deploy**, authorize it, and copy the **Web app URL** it gives you
-   (ends in `/exec`).
-6. In the Hawk & Eagle Counter app, open the **⋮** menu, paste that URL into
-   "Save to Google Sheet", tap **Save URL**.
-7. Tap **📤 Save Today's Count** any time you want to log the current date
-   and counts as a new row in your sheet.
-
-Each phone can point at the same sheet URL, so you and your wife can both log
-from your own phones into one shared spreadsheet history of your trips.
+Scores are Poor = 1, Neutral = 2, Good = 3 — the "Avg score" in each summary
+is the average of that over the days you actually logged.
 
 ## Files
 
 - `index.html` / `styles.css` / `app.js` — the app itself.
 - `manifest.json` / `sw.js` / `icons/` — makes it installable and offline-capable.
-- `google-apps-script.gs` — paste into Google Apps Script for the Sheets bonus feature.

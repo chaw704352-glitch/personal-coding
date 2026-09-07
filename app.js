@@ -1,37 +1,18 @@
 (() => {
   "use strict";
 
-  const STORAGE_KEY = "hawkEagleCounter.v1";
-  const SHEET_URL_KEY = "hawkEagleCounter.sheetUrl";
-  const SOUND_KEY = "hawkEagleCounter.soundOn";
+  const STORAGE_KEY = "dietExerciseTracker.v1";
+  const SCORE = { poor: 1, neutral: 2, good: 3 };
+  const LABEL = { poor: "Poor", neutral: "Neutral", good: "Good" };
+  const WEEKDAY_SHORT = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-  const el = {
-    hawkCount: document.getElementById("hawkCount"),
-    eagleCount: document.getElementById("eagleCount"),
-    totalCount: document.getElementById("totalCount"),
-    hawkBtn: document.getElementById("hawkBtn"),
-    eagleBtn: document.getElementById("eagleBtn"),
-    hawkMinus: document.getElementById("hawkMinus"),
-    eagleMinus: document.getElementById("eagleMinus"),
-    undoBtn: document.getElementById("undoBtn"),
-    resetBtn: document.getElementById("resetBtn"),
-    tripDate: document.getElementById("tripDate"),
-    menuBtn: document.getElementById("menuBtn"),
-    closeMenuBtn: document.getElementById("closeMenuBtn"),
-    menuOverlay: document.getElementById("menuOverlay"),
-    soundToggle: document.getElementById("soundToggle"),
-    sheetUrlInput: document.getElementById("sheetUrlInput"),
-    saveSheetUrlBtn: document.getElementById("saveSheetUrlBtn"),
-    sendToSheetBtn: document.getElementById("sendToSheetBtn"),
-    sheetStatus: document.getElementById("sheetStatus"),
-  };
-
+  // ---------- Storage ----------
   function loadState() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) return JSON.parse(raw);
     } catch (e) { /* corrupted storage, start fresh */ }
-    return { hawks: 0, eagles: 0, history: [], startDate: new Date().toISOString() };
+    return { entries: {} };
   }
 
   let state = loadState();
@@ -40,239 +21,274 @@
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
   }
 
-  function render() {
-    el.hawkCount.textContent = state.hawks;
-    el.eagleCount.textContent = state.eagles;
-    el.totalCount.textContent = state.hawks + state.eagles;
-    el.tripDate.textContent = new Date(state.startDate).toLocaleDateString(undefined, {
-      month: "short", day: "numeric", year: "numeric",
-    });
+  // ---------- Date helpers (local time, no UTC drift) ----------
+  function toKey(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
   }
 
-  // ---------- Sound effects (Web Audio API, no external files needed) ----------
-  let audioCtx = null;
-  function getCtx() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === "suspended") audioCtx.resume();
-    return audioCtx;
+  function fromKey(key) {
+    const [y, m, d] = key.split("-").map(Number);
+    return new Date(y, m - 1, d);
   }
 
-  function soundEnabled() {
-    return el.soundToggle.checked;
+  function addDays(date, n) {
+    const d = new Date(date);
+    d.setDate(d.getDate() + n);
+    return d;
   }
 
-  function playTone(freq, start, duration, type, gainPeak, glideTo) {
-    const ctx = getCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(freq, start);
-    if (glideTo) osc.frequency.exponentialRampToValueAtTime(glideTo, start + duration);
-    gain.gain.setValueAtTime(0.0001, start);
-    gain.gain.exponentialRampToValueAtTime(gainPeak, start + duration * 0.15);
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(start);
-    osc.stop(start + duration + 0.02);
+  function startOfWeek(date) {
+    // Monday-first week
+    const d = new Date(date);
+    const dow = (d.getDay() + 6) % 7; // Mon=0 ... Sun=6
+    d.setDate(d.getDate() - dow);
+    d.setHours(0, 0, 0, 0);
+    return d;
   }
 
-  const hawkClip = new Audio("sounds/hawk.mp3");
-  hawkClip.preload = "auto";
-
-  function playHawkSynth() {
-    const ctx = getCtx();
-    const now = ctx.currentTime;
-    // sharp, quick "kee-yeer" chirp - two fast upward chirps
-    playTone(1600, now, 0.12, "sawtooth", 0.15, 2400);
-    playTone(1400, now + 0.13, 0.15, "sawtooth", 0.15, 2200);
+  function isSameDay(a, b) {
+    return toKey(a) === toKey(b);
   }
 
-  function playHawkSound() {
-    if (!soundEnabled()) return;
-    getCtx(); // unlock audio on iOS/Android before playing the clip
-    const clip = hawkClip.cloneNode(true);
-    clip.play().catch(playHawkSynth);
+  function fmtShort(date) {
+    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
   }
 
-  const eagleClip = new Audio("sounds/eagle.mp3");
-  eagleClip.preload = "auto";
+  // ---------- App state ----------
+  let logDate = new Date();
+  let weekRef = new Date();
+  let monthRef = new Date();
 
-  function playEagleSynth() {
-    const ctx = getCtx();
-    const now = ctx.currentTime;
-    // majestic descending call - lower, longer, with a little warble
-    playTone(950, now, 0.35, "triangle", 0.18, 500);
-    playTone(700, now + 0.3, 0.25, "triangle", 0.14, 420);
+  const el = {
+    dayDate: document.getElementById("dayDate"),
+    dayPicker: document.getElementById("dayPicker"),
+    prevDayBtn: document.getElementById("prevDayBtn"),
+    nextDayBtn: document.getElementById("nextDayBtn"),
+    clearDayBtn: document.getElementById("clearDayBtn"),
+    ratingGroups: document.querySelectorAll(".rating-buttons"),
+
+    weekLabel: document.getElementById("weekLabel"),
+    weekDays: document.getElementById("weekDays"),
+    weekDietSummary: document.getElementById("weekDietSummary"),
+    weekExerciseSummary: document.getElementById("weekExerciseSummary"),
+    prevWeekBtn: document.getElementById("prevWeekBtn"),
+    nextWeekBtn: document.getElementById("nextWeekBtn"),
+
+    monthLabel: document.getElementById("monthLabel"),
+    monthWeekdayRow: document.getElementById("monthWeekdayRow"),
+    monthGrid: document.getElementById("monthGrid"),
+    monthDietSummary: document.getElementById("monthDietSummary"),
+    monthExerciseSummary: document.getElementById("monthExerciseSummary"),
+    prevMonthBtn: document.getElementById("prevMonthBtn"),
+    nextMonthBtn: document.getElementById("nextMonthBtn"),
+
+    tabs: document.querySelectorAll(".tab-btn"),
+    views: document.querySelectorAll(".view"),
+  };
+
+  function getEntry(key) {
+    return state.entries[key] || null;
   }
 
-  function playEagleSound() {
-    if (!soundEnabled()) return;
-    getCtx(); // unlock audio on iOS/Android before playing the clip
-    const clip = eagleClip.cloneNode(true);
-    clip.play().catch(playEagleSynth);
-  }
-
-  const fanfareClip = new Audio("sounds/fanfare.mp3");
-  fanfareClip.preload = "auto";
-
-  function playMilestoneFanfareSynth() {
-    const ctx = getCtx();
-    const now = ctx.currentTime;
-    const notes = [523.25, 659.25, 783.99, 1046.5]; // C5 E5 G5 C6
-    notes.forEach((freq, i) => {
-      playTone(freq, now + i * 0.11, 0.22, "square", 0.12, null);
-    });
-  }
-
-  function playMilestoneFanfare() {
-    if (!soundEnabled()) return;
-    getCtx(); // unlock audio on iOS/Android before playing the clip
-    const clip = fanfareClip.cloneNode(true);
-    clip.play().catch(playMilestoneFanfareSynth);
-  }
-
-  const oopsClip = new Audio("sounds/oops.mp3");
-  oopsClip.preload = "auto";
-
-  function playOopsSynth() {
-    const ctx = getCtx();
-    const now = ctx.currentTime;
-    // sad little trombone "wah-wah"
-    playTone(300, now, 0.25, "sawtooth", 0.14, 220);
-    playTone(220, now + 0.22, 0.35, "sawtooth", 0.14, 160);
-  }
-
-  function playOopsSound() {
-    if (!soundEnabled()) return;
-    getCtx(); // unlock audio on iOS/Android before playing the clip
-    const clip = oopsClip.cloneNode(true);
-    clip.play().catch(playOopsSynth);
-  }
-
-  function showMilestoneFlash(total) {
-    const flash = document.createElement("div");
-    flash.className = "milestone-flash";
-    flash.textContent = `🎉 ${total} birds! 🎉`;
-    document.body.appendChild(flash);
-    flash.addEventListener("animationend", () => flash.remove());
-  }
-
-  // ---------- Actions with undo history ----------
-  function pushHistory(action) {
-    state.history.push(action);
-    if (state.history.length > 200) state.history.shift();
-  }
-
-  function addBird(kind) {
-    const before = state.hawks + state.eagles;
-    if (kind === "hawk") state.hawks++;
-    else state.eagles++;
-    pushHistory({ type: kind, delta: 1 });
+  function setRating(key, category, value) {
+    const entry = state.entries[key] || {};
+    entry[category] = value;
+    state.entries[key] = entry;
     saveState();
-    render();
-
-    if (kind === "hawk") playHawkSound();
-    else playEagleSound();
-
-    const after = state.hawks + state.eagles;
-    if (Math.floor(after / 10) > Math.floor(before / 10) && after > 0) {
-      setTimeout(() => {
-        playMilestoneFanfare();
-        showMilestoneFlash(after);
-      }, 350);
-    }
   }
 
-  function removeBird(kind) {
-    if (kind === "hawk" && state.hawks <= 0) return;
-    if (kind === "eagle" && state.eagles <= 0) return;
-    if (kind === "hawk") state.hawks--;
-    else state.eagles--;
-    pushHistory({ type: kind, delta: -1 });
-    saveState();
-    render();
-    playOopsSound();
-  }
+  // ---------- Log view ----------
+  function renderLog() {
+    const key = toKey(logDate);
+    const today = new Date();
+    el.dayDate.textContent = isSameDay(logDate, today)
+      ? `Today · ${fmtShort(logDate)}`
+      : logDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
+    el.dayPicker.value = key;
 
-  function undoLast() {
-    const last = state.history.pop();
-    if (!last) return;
-    if (last.type === "hawk") state.hawks -= last.delta;
-    else state.eagles -= last.delta;
-    if (state.hawks < 0) state.hawks = 0;
-    if (state.eagles < 0) state.eagles = 0;
-    saveState();
-    render();
-    playOopsSound();
-  }
-
-  function resetTrip() {
-    if (!confirm("Reset the trip counter to zero? This can't be undone.")) return;
-    state = { hawks: 0, eagles: 0, history: [], startDate: new Date().toISOString() };
-    saveState();
-    render();
-  }
-
-  // ---------- Event bindings ----------
-  el.hawkBtn.addEventListener("click", () => addBird("hawk"));
-  el.eagleBtn.addEventListener("click", () => addBird("eagle"));
-  el.hawkMinus.addEventListener("click", () => removeBird("hawk"));
-  el.eagleMinus.addEventListener("click", () => removeBird("eagle"));
-  el.undoBtn.addEventListener("click", undoLast);
-  el.resetBtn.addEventListener("click", resetTrip);
-
-  // ---------- Settings drawer ----------
-  el.menuBtn.addEventListener("click", () => el.menuOverlay.classList.remove("hidden"));
-  el.closeMenuBtn.addEventListener("click", () => el.menuOverlay.classList.add("hidden"));
-  el.menuOverlay.addEventListener("click", (e) => {
-    if (e.target === el.menuOverlay) el.menuOverlay.classList.add("hidden");
-  });
-
-  el.soundToggle.checked = localStorage.getItem(SOUND_KEY) !== "off";
-  el.soundToggle.addEventListener("change", () => {
-    localStorage.setItem(SOUND_KEY, el.soundToggle.checked ? "on" : "off");
-  });
-
-  el.sheetUrlInput.value = localStorage.getItem(SHEET_URL_KEY) || "";
-  el.saveSheetUrlBtn.addEventListener("click", () => {
-    const url = el.sheetUrlInput.value.trim();
-    localStorage.setItem(SHEET_URL_KEY, url);
-    el.sheetStatus.textContent = url ? "Saved." : "Cleared.";
-  });
-
-  el.sendToSheetBtn.addEventListener("click", async () => {
-    const url = (localStorage.getItem(SHEET_URL_KEY) || "").trim();
-    if (!url) {
-      el.sheetStatus.textContent = "Add your Google Apps Script URL above first.";
-      return;
-    }
-    el.sheetStatus.textContent = "Saving...";
-    const payload = {
-      date: new Date().toISOString().slice(0, 10),
-      hawks: state.hawks,
-      eagles: state.eagles,
-      total: state.hawks + state.eagles,
-    };
-    try {
-      // no-cors because Apps Script Web Apps don't return CORS headers;
-      // we can't read the response, but the request still goes through.
-      await fetch(url, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(payload),
+    const entry = getEntry(key) || {};
+    el.ratingGroups.forEach((group) => {
+      const category = group.dataset.category;
+      group.querySelectorAll(".rate-btn").forEach((btn) => {
+        btn.classList.toggle("selected", entry[category] === btn.dataset.value);
       });
-      el.sheetStatus.textContent = `Sent ${payload.date}: ${payload.hawks} hawks, ${payload.eagles} eagles.`;
-    } catch (err) {
-      el.sheetStatus.textContent = "Couldn't reach the sheet. Check your connection or URL.";
-    }
+    });
+  }
+
+  el.ratingGroups.forEach((group) => {
+    group.addEventListener("click", (e) => {
+      const btn = e.target.closest(".rate-btn");
+      if (!btn) return;
+      const category = group.dataset.category;
+      const key = toKey(logDate);
+      const current = getEntry(key) || {};
+      // tap the already-selected value again to clear it
+      const value = current[category] === btn.dataset.value ? null : btn.dataset.value;
+      if (value === null) {
+        delete current[category];
+        state.entries[key] = current;
+        if (!current.diet && !current.exercise) delete state.entries[key];
+        saveState();
+      } else {
+        setRating(key, category, value);
+      }
+      renderLog();
+    });
   });
 
-  // Resume audio context on first touch (mobile browsers require a user gesture)
-  document.body.addEventListener("touchstart", () => getCtx(), { once: true });
-  document.body.addEventListener("click", () => getCtx(), { once: true });
+  el.prevDayBtn.addEventListener("click", () => { logDate = addDays(logDate, -1); renderLog(); });
+  el.nextDayBtn.addEventListener("click", () => { logDate = addDays(logDate, 1); renderLog(); });
+  el.dayPicker.addEventListener("change", () => {
+    if (el.dayPicker.value) {
+      logDate = fromKey(el.dayPicker.value);
+      renderLog();
+    }
+  });
+  el.clearDayBtn.addEventListener("click", () => {
+    const key = toKey(logDate);
+    if (!state.entries[key]) return;
+    if (!confirm("Clear the diet and exercise rating for this day?")) return;
+    delete state.entries[key];
+    saveState();
+    renderLog();
+  });
 
-  render();
+  // ---------- Week view ----------
+  function buildSummary(counts, total) {
+    const rows = ["poor", "neutral", "good"].map((k) => `
+      <div class="summary-row">
+        <span>${LABEL[k]}</span>
+        <span class="count">${counts[k]}</span>
+      </div>`).join("");
+    let avgLine = "";
+    if (total > 0) {
+      const avg = (counts.poor * 1 + counts.neutral * 2 + counts.good * 3) / total;
+      avgLine = `<div class="summary-avg">Avg score: ${avg.toFixed(1)} / 3 (${total} logged)</div>`;
+    } else {
+      avgLine = `<div class="summary-avg">No days logged</div>`;
+    }
+    return rows + avgLine;
+  }
+
+  function renderWeek() {
+    const start = startOfWeek(weekRef);
+    const end = addDays(start, 6);
+    el.weekLabel.textContent = `${fmtShort(start)} – ${fmtShort(end)}, ${end.getFullYear()}`;
+
+    const today = new Date();
+    const dietCounts = { poor: 0, neutral: 0, good: 0 };
+    const exerciseCounts = { poor: 0, neutral: 0, good: 0 };
+    let dietTotal = 0, exerciseTotal = 0;
+
+    let rowsHtml = "";
+    for (let i = 0; i < 7; i++) {
+      const d = addDays(start, i);
+      const key = toKey(d);
+      const entry = getEntry(key) || {};
+      if (entry.diet) { dietCounts[entry.diet]++; dietTotal++; }
+      if (entry.exercise) { exerciseCounts[entry.exercise]++; exerciseTotal++; }
+
+      const dietPill = entry.diet
+        ? `<div class="pill ${entry.diet}">${LABEL[entry.diet]}</div>`
+        : `<div class="pill">–</div>`;
+      const exercisePill = entry.exercise
+        ? `<div class="pill ${entry.exercise}">${LABEL[entry.exercise]}</div>`
+        : `<div class="pill">–</div>`;
+
+      rowsHtml += `
+        <div class="week-day-row ${isSameDay(d, today) ? "is-today" : ""}">
+          <div class="week-day-label">${WEEKDAY_SHORT[i]}<span class="wd-num">${d.getDate()}</span></div>
+          ${dietPill}
+          ${exercisePill}
+        </div>`;
+    }
+    el.weekDays.innerHTML = rowsHtml;
+    el.weekDietSummary.innerHTML = buildSummary(dietCounts, dietTotal);
+    el.weekExerciseSummary.innerHTML = buildSummary(exerciseCounts, exerciseTotal);
+  }
+
+  el.prevWeekBtn.addEventListener("click", () => { weekRef = addDays(weekRef, -7); renderWeek(); });
+  el.nextWeekBtn.addEventListener("click", () => { weekRef = addDays(weekRef, 7); renderWeek(); });
+
+  // ---------- Month view ----------
+  function renderMonthWeekdayRow() {
+    el.monthWeekdayRow.innerHTML = WEEKDAY_SHORT.map((w) => `<div>${w}</div>`).join("");
+  }
+
+  function renderMonth() {
+    const year = monthRef.getFullYear();
+    const month = monthRef.getMonth();
+    el.monthLabel.textContent = monthRef.toLocaleDateString(undefined, { month: "long", year: "numeric" });
+
+    const firstOfMonth = new Date(year, month, 1);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const leadingEmpty = (firstOfMonth.getDay() + 6) % 7; // Monday-first offset
+
+    const today = new Date();
+    const dietCounts = { poor: 0, neutral: 0, good: 0 };
+    const exerciseCounts = { poor: 0, neutral: 0, good: 0 };
+    let dietTotal = 0, exerciseTotal = 0;
+
+    let cells = "";
+    for (let i = 0; i < leadingEmpty; i++) {
+      cells += `<div class="month-cell empty"></div>`;
+    }
+    for (let day = 1; day <= daysInMonth; day++) {
+      const d = new Date(year, month, day);
+      const key = toKey(d);
+      const entry = getEntry(key) || {};
+      if (entry.diet) { dietCounts[entry.diet]++; dietTotal++; }
+      if (entry.exercise) { exerciseCounts[entry.exercise]++; exerciseTotal++; }
+
+      const dietDot = `<i class="dot ${entry.diet || "none"}"></i>`;
+      const exerciseDot = `<i class="dot ${entry.exercise || "none"}"></i>`;
+
+      cells += `
+        <div class="month-cell ${isSameDay(d, today) ? "is-today" : ""}" data-key="${key}">
+          <div class="cell-num">${day}</div>
+          <div class="cell-dots">${dietDot}${exerciseDot}</div>
+        </div>`;
+    }
+    el.monthGrid.innerHTML = cells;
+    el.monthDietSummary.innerHTML = buildSummary(dietCounts, dietTotal);
+    el.monthExerciseSummary.innerHTML = buildSummary(exerciseCounts, exerciseTotal);
+  }
+
+  el.monthGrid.addEventListener("click", (e) => {
+    const cell = e.target.closest(".month-cell[data-key]");
+    if (!cell) return;
+    logDate = fromKey(cell.dataset.key);
+    renderLog();
+    switchView("logView");
+  });
+
+  el.prevMonthBtn.addEventListener("click", () => {
+    monthRef = new Date(monthRef.getFullYear(), monthRef.getMonth() - 1, 1);
+    renderMonth();
+  });
+  el.nextMonthBtn.addEventListener("click", () => {
+    monthRef = new Date(monthRef.getFullYear(), monthRef.getMonth() + 1, 1);
+    renderMonth();
+  });
+
+  // ---------- Tab switching ----------
+  function switchView(viewId) {
+    el.views.forEach((v) => v.classList.toggle("hidden", v.id !== viewId));
+    el.tabs.forEach((t) => t.classList.toggle("active", t.dataset.view === viewId));
+    if (viewId === "weekView") renderWeek();
+    if (viewId === "monthView") renderMonth();
+  }
+
+  el.tabs.forEach((tab) => {
+    tab.addEventListener("click", () => switchView(tab.dataset.view));
+  });
+
+  // ---------- Init ----------
+  renderMonthWeekdayRow();
+  renderLog();
 
   // ---------- PWA service worker ----------
   if ("serviceWorker" in navigator) {

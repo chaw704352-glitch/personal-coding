@@ -1,4 +1,4 @@
-const CACHE_NAME = "hawk-eagle-counter-v1";
+const CACHE_NAME = "diet-exercise-tracker-v1";
 const ASSETS = [
   "./",
   "./index.html",
@@ -7,10 +7,6 @@ const ASSETS = [
   "./manifest.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
-  "./sounds/hawk.mp3",
-  "./sounds/eagle.mp3",
-  "./sounds/oops.mp3",
-  "./sounds/fanfare.mp3",
 ];
 
 self.addEventListener("install", (event) => {
