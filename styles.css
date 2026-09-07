@@ -147,6 +147,13 @@ html, body {
 
 .tap-emoji {
   font-size: 3rem;
+  line-height: 1;
+}
+
+.tap-emoji svg {
+  width: 1em;
+  height: 1em;
+  display: block;
 }
 
 .hawk-btn { background: linear-gradient(160deg, var(--hawk), var(--hawk-dark)); }

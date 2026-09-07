@@ -33,7 +33,17 @@
       <div class="counter-label">Hawks</div>
       <div id="hawkCount" class="counter-value">0</div>
       <button id="hawkBtn" class="tap-btn hawk-btn" aria-label="Add a hawk">
-        <span class="tap-emoji">🦅</span>
+        <span class="tap-emoji" aria-hidden="true">
+          <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="46,43 8,25 16,39 46,51" fill="#7a4a2e"/>
+            <polygon points="54,43 92,25 84,39 54,51" fill="#7a4a2e"/>
+            <ellipse cx="50" cy="47" rx="6" ry="10" fill="#8a5a3a"/>
+            <ellipse cx="50" cy="36" rx="5" ry="6" fill="#d9c19a"/>
+            <polygon points="54,35 62,37 54,39" fill="#2a1c10"/>
+            <polygon points="45,52 55,52 63,76 56,82 50,75 44,82 37,76" fill="#cc5322"/>
+            <polygon points="42,77 58,77 56,81 50,79 44,81" fill="#2a1810"/>
+          </svg>
+        </span>
         <span class="tap-text">HAWK!</span>
       </button>
       <button id="hawkMinus" class="adjust-btn" aria-label="Remove a hawk">− 1</button>
